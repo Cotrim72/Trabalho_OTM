@@ -4,8 +4,10 @@
 Draft de Pokémon com recomendação por otimização (MILP).
 
 Modelo (resumo):
-    max  Z = alpha * sum_i v_i x_i
-           + beta  * sum_i ( sum_{j in U} P_j * Advantage(i,j) ) x_i
+    max  Z = sum_i ( alpha*v_i + beta*d_i + gamma*r_i ) x_i
+        d_i = sum_{j in U} P_j * Advantage(i,j) / (4 sum_j P_j)   (vantagem ofensiva)
+        r_i = sum_{j in U} P_j * Resist(i,j)    / (4 sum_j P_j)   (resistência de tipo)
+        Resist(i,j) = -Advantage(j,i)
     s.a. sum_i x_i = M                  (M = rodada atual)
          sum_i w_i x_i <= C             (orçamento)
          x_i = 1  para i em A           (meus Pokémon já escolhidos)
@@ -16,7 +18,7 @@ A cada rodada: o adversário escolhe um Pokémon aleatório -> o modelo é
 resolvido -> o programa recomenda (Top-N) o seu próximo Pokémon.
 
 Dependências:  pip install pandas numpy scipy
-Uso:           python pokemon_draft.py  [--costs costs_pokemon.csv --stats stats_pokemon.csv]
+Uso:           python model1.py --costs costs_pokemon.csv --stats stats_pokemon.csv
 """
 
 import argparse
@@ -103,6 +105,12 @@ def advantage(types_i, types_j) -> int:
         m = type_multiplier(t, types_j)
         total += 2 if m > 1 else (-2 if m < 1 else 0)
     return total
+
+
+def resistance(types_i, types_j) -> int:
+    """Resist(i,j) = -Advantage(j,i): os tipos de j atacam i; o sinal é invertido
+    (+ se i resiste/é imune, - se i é super efetivamente atingido)."""
+    return -advantage(types_j, types_i)
 
 
 # --------------------------------------------------------------------------
@@ -195,18 +203,23 @@ def load_data(costs_path, stats_path, attack_mode="max"):
 class Config:
     G: int = 6                # nº total de Pokémon por jogador
     C: float = 80.0           # orçamento
-    alpha: float = 0.5
-    beta: float = 0.5
+    alpha: float = 0.5        # peso da força de ataque
+    beta: float = 0.5         # peso da vantagem ofensiva de tipos
+    gamma: float = 0.0        # peso da resistência de tipos (0 = desligado)
     reserve_budget: bool = True   # reserva custo mínimo p/ as rodadas futuras
     lookahead: bool = False       # resolve o time completo (sum x = G) em vez de sum x = M
     allow_ubers: bool = False
 
 
 def objective_coeffs(df, U_idx, cfg):
-    """c_i = alpha*v_i + beta*(sum_j P_j Adv(i,j) / (4 sum_j P_j))   (termo da vantagem
-    normalizado para [-1,1] para ficar na mesma escala de v_i)."""
+    """c_i = alpha*v_i + beta*d_i + gamma*r_i, com
+        d_i = sum_j P_j Adv(i,j)    / (4 sum_j P_j)   (vantagem ofensiva, em [-1,1])
+        r_i = sum_j P_j Resist(i,j) / (4 sum_j P_j)   (resistência de tipo, em [-1,1])
+    Os termos de tipo são normalizados para ficar na mesma escala de v_i.
+    Retorna (c, adv_term, res_term)."""
     n = len(df)
     adv_term = np.zeros(n)
+    res_term = np.zeros(n)
     if U_idx:
         Pj = df["P"].values[U_idx]
         norm = 4.0 * Pj.sum()
@@ -214,13 +227,16 @@ def objective_coeffs(df, U_idx, cfg):
         for i in range(n):
             adv_term[i] = sum(Pj[k] * advantage(types[i], types[j])
                               for k, j in enumerate(U_idx)) / norm
-    return cfg.alpha * df["v"].values + cfg.beta * adv_term, adv_term
+            res_term[i] = sum(Pj[k] * resistance(types[i], types[j])
+                              for k, j in enumerate(U_idx)) / norm
+    c = cfg.alpha * df["v"].values + cfg.beta * adv_term + cfg.gamma * res_term
+    return c, adv_term, res_term
 
 
 def solve(df, A_idx, U_idx, M, cfg, extra_ban=()):
     """Resolve o MILP. Retorna (índices escolhidos, Z) ou (None, None) se inviável."""
     n = len(df)
-    c, _ = objective_coeffs(df, U_idx, cfg)
+    c, _, _ = objective_coeffs(df, U_idx, cfg)
     w = df["cost"].values.astype(float)
 
     lb, ub = np.zeros(n), np.ones(n)
@@ -263,7 +279,7 @@ def recommend(df, A_idx, U_idx, M, cfg, top_k=5):
         if not new:
             break
         if cfg.lookahead:  # time completo: sugere o novo membro de maior contribuição individual
-            c, _ = objective_coeffs(df, U_idx, cfg)
+            c, _, _ = objective_coeffs(df, U_idx, cfg)
             pick = max(new, key=lambda i: c[i])
         else:
             pick = new[0]
@@ -352,7 +368,8 @@ def main():
     cfg.C = ask("Orçamento total (C)", cfg.C, float)
     cfg.alpha = ask("Peso da força de ataque (alpha, 0-1)", cfg.alpha, float)
     cfg.beta = ask("Peso da vantagem de tipos (beta, 0-1)", cfg.beta, float)
-    cfg.alpha, cfg.beta = min(max(cfg.alpha, 0), 1), min(max(cfg.beta, 0), 1)
+    cfg.gamma = ask("Peso da resistência de tipos (gamma, 0-1)", cfg.gamma, float)
+    cfg.alpha, cfg.beta, cfg.gamma = (min(max(w, 0), 1) for w in (cfg.alpha, cfg.beta, cfg.gamma))
 
     A, U = [], []
     print("\nComandos a cada rodada:  ENTER = aceitar #1 | número = aceitar essa opção |"
