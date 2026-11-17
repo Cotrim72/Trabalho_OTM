@@ -193,7 +193,7 @@ upright("s.a.") quad & sum_(i in N) x_i = M\
   Interiores, planos de corte e heurísticas primais).
 ]
 
-#slide[3. Solução: Estrutura em 3 scripts][
+#slide[3. Solução: Estrutura][
 + #strong[Simulador principal (`model1.py`):] Possui dois modos ---
   #emph[Draft] (você + $n - 1$ adversários aleatórios escolhendo
   rodada a rodada) e #emph[Game] (gera $n - 1$ equipes prontas e
@@ -204,9 +204,6 @@ upright("s.a.") quad & sum_(i in N) x_i = M\
   impacto da variação dos pesos ($alpha$, $beta$ e $gamma$) sobre
   custo, ataque e vantagem/resistência de tipos frente aos mesmos
   adversários.
-+ #strong[Abordagem de duelo:] Dado o #emph[roster] de $n$ Pokémon já
-  conquistados na liga, seleciona o melhor subconjunto de $m$ Pokémon
-  ($m lt.eq n$) para enfrentar o time do adversário na batalha.
 ]
 
 #slide[3. Solução: Demonstração em Rodada de Draft][
