@@ -41,13 +41,13 @@
   University] (tiers de uso desde meados dos anos 2000).
 - #strong[Formato Draft League:] Jogadores escolhem equipes exclusivas
   em rodadas alternadas, respeitando um #strong[orçamento fixo de
-  pontos] (cada Pokémon tem um custo proporcional à sua força).
-- #strong[Desafio de decisão:] A cada rodada, o pool encolhe e as
+  pontos] (cada Pokémon tem um custo).
+- #strong[Desafio de decisão:] A cada rodada, as
   escolhas dos adversários alteram quais tipos e estatísticas são mais
   valiosos.
 - #strong[Aplicações atuais:] O problema é isomorfo ao #strong[Problema
   da Mochila com Cardinalidade] (#emph[Cardinality-Constrained
-  Knapsack]), usado em #emph[fantasy sports] (NBA, NFL, Cartola),
+  Knapsack]), usado em #emph[fantasy sports] (ex.: Cartola),
   alocação de portfólios e montagem de equipes sob restrição
   orçamentária.
 ]
@@ -59,8 +59,8 @@ $ c_i = alpha v_i + beta d_i + gamma r_i $
 
 #grid(columns: (1fr, 1fr, 1fr), gutter: 20pt,
   [*Força de ataque* \ $v_i$: poder ofensivo bruto.],
-  [*Vantagem ofensiva* \ $d_i$: eficácia contra os adversários.],
-  [*Resistência defensiva* \ $r_i$: proteção contra os ataques adversários.],
+  [*Vantagem ofensiva* \ $d_i$: eficácia contra os adversários já selecionados.],
+  [*Resistência defensiva* \ $r_i$: proteção contra os ataques dos adversários já selecionados.],
 )
 
 Os pesos $alpha, beta, gamma$ definem a importância de cada fator.
@@ -108,7 +108,6 @@ $ d_i = frac(sum_(j in U) "Advantage"(i,j), 4 |U|) in [-1,1] $
 
 #slide[2. Modelo Matemático: Resistência defensiva ($r_i$)][
 Agora invertemos os papéis: os tipos do adversário $j$ atacam o Pokémon $i$.
-Resistir é bom; receber um ataque super efetivo é ruim.
 
 $ "Resist"(i,j) = -"Advantage"(j,i) = -sum_(t in T_j) s(t,i) $
 
@@ -145,7 +144,7 @@ $F = { i in N : i in.not U union upright("Ubers") } backslash A$:
   exatamente um novo integrante, logo o time deve possuir exatamente $M$
   Pokémon: $ sum_(i in N) x_i = M $
 + #strong[Orçamento com reserva futura:] O custo acumulado não pode
-  exceder $B_M$, que reserva saldo para contratar os $G - M$ Pokémon
+  exceder $B_M$, que reserva saldo para escolher os $G - M$ Pokémon
   mais baratos ainda disponíveis
   ($w_((1)) lt.eq w_((2)) lt.eq dots.h$):
   $ sum_(i in N) w_i x_i lt.eq B_M,quad upright("onde ") B_M = C - sum_(k = 1)^(G - M) w_((k)) $
@@ -153,7 +152,7 @@ $F = { i in N : i in.not U union upright("Ubers") } backslash A$:
 
 #slide[2. Modelo Matemático: Todas as Restrições do Draft (2/2)][
 #set enum(start: 3)
-+ #strong[Permanência das escolhas anteriores:] Pokémon já contratados
++ #strong[Permanência das escolhas anteriores:] Pokémon já selecionados
   pelo jogador permanecem obrigatoriamente na equipe:
   $ x_i = 1 quad forall i in A $
 + #strong[Exclusividade e banimentos:] Pokémon já escolhidos pelos
@@ -185,9 +184,9 @@ upright("s.a.") quad & sum_(i in N) x_i = M\
 ]
 
 #slide[3. Solução: Arquitetura e Implementação][
-- #strong[Base de dados oficial:] Os testes utilizam dados oficiais de
+- #strong[Base de dados:] Os testes utilizam dados de
   #strong[status] (#emph[stats]) e tabelas de #strong[custos] extraídos
-  do site oficial da #strong[Smogon], uma das principais plataformas e
+  do site da #strong[Smogon], uma das principais plataformas e
   referências competitivas em #emph[Draft Leagues] de Pokémon.
 - #strong[Stack em Python:] Manipulação de dados e álgebra matricial com
   `pandas` e `numpy`; otimização via `scipy.optimize.milp`.
@@ -260,7 +259,7 @@ físicas.
 #slide[3. Solução: Funcionalidades Adicionais][
 - #strong[Interface interativa no terminal:] Sorteia Pokémon oponentes e mostra o modelo em ação em cada rodada.
 - #strong[Mais de 1 recomendação:] Apresenta ao usuário a cada rodada os 5 Pokémon com o maior valor de $Z$ e permite que ele escolha um.
-- #strong[Modelo mais simples para a seleção de um time para uma batalha específica:] Depois do draft, existe um novo problema de decisão a cada batalha, agora com um único time adversário, sem custo por Pokémon e restrito à equipe do draft.
+- #strong[Modelo mais simples para a seleção de Pokémon para uma batalha específica:] Depois do draft, existe um novo problema de decisão a cada batalha, agora com um único time adversário, sem custo por Pokémon e restrito à equipe do draft.
 ]
 
 #slide[4. Discussão: Limitações, Casos Especiais e Generalizações Futuras][
@@ -273,7 +272,7 @@ físicas.
   habilidades e itens.
 - #strong[Casos especiais:]
   - #emph[Rodada 1 sem histórico ($U = emptyset$):] $d_i = r_i = 0$,
-    reduzindo o problema ao critério puro de poder/custo.
+    reduzindo o problema ao critério puro de poder.
 - #strong[Generalizações futuras:]
   - #emph[Programação Quadrática Binária (MIQP)]: Adicionar termos de sinergia
     $- lambda sum_(i < k) upright("Overlap")(T_i,T_k)x_i x_k$ para
