@@ -8,10 +8,10 @@
     #counter(page).display() / #counter(page).final().first()
   ]),
 )
-#set text(font: "New Computer Modern", size: 16pt, lang: "pt")
+#set text(font: "New Computer Modern", size: 20pt, lang: "pt")
 #set par(leading: 0.55em, spacing: 0.7em)
-#set list(spacing: 0.8em)
-#set enum(spacing: 0.65em)
+#set list(spacing: 2.0em)
+#set enum(spacing: 2.0em)
 #show math.equation: set text(font: "New Computer Modern Math")
 #set table(inset: 7pt, stroke: 0.5pt + luma(190), fill: (x, y) => if y == 0 { rgb("e7edf4") })
 #show figure.where(kind: table): set text(size: 14pt)
@@ -52,97 +52,89 @@
   orçamentária.
 ]
 
-#slide[2. Modelo Matemático: Probabilidade de Uso por Tier ($P_j$)][
-Nem todo Pokémon do elenco adversário $U$ tem a mesma chance de entrar
-em batalha. Para ponderar as ameaças mais prováveis, cada Pokémon $j$
-recebe uma #strong[probabilidade de uso] $P_j$ conforme sua #emph[tier]
-competitiva na Smogon:
+#slide[2. Modelo Matemático: Do Pokémon ao time][
+Para cada Pokémon $i$ do conjunto de candidatos $N$, combinamos três fatores:
 
-#figure(
-  align(center)[#table(
-    columns: 3,
-    align: (left,left,center,),
-    table.header([Grupo de Tier], [Tiers incluídas], [Probabilidade
-      ($P_j$)],),
-    table.hline(),
-    [#strong[OU] (#emph[OverUsed])], [OU, UUBL, Uber,
-    AG], [#strong[0,95]],
-    [#strong[UU] (#emph[UnderUsed])], [UU, RUBL], [#strong[0,80]],
-    [#strong[RU] (#emph[RarelyUsed])], [RU, NUBL], [#strong[0,60]],
-    [#strong[NU] (#emph[NeverUsed])], [NU, PUBL], [#strong[0,40]],
-    [#strong[PU] (#emph[PartiallyUsed])], [PU, ZUBL], [#strong[0,20]],
-    [#strong[ZU] (#emph[ZeroUsed])], [ZU, LC, NFE, Illegal,
-    etc.], [#strong[0,05]],
-  )]
-  , kind: table
-  )
+$ c_i = alpha v_i + beta d_i + gamma r_i $
 
-- #strong[Parametrização arbitrária:] Os valores de
-  $P_j in\[0,05; quad 0,95\]$ foram atribuídos de forma
-  #strong[arbitrária] (heurística monotônica), refletindo apenas a
-  hierarquia qualitativa de força e frequência de uso entre as divisões.
+#grid(columns: (1fr, 1fr, 1fr), gutter: 20pt,
+  [*Força de ataque* \ $v_i$: poder ofensivo bruto.],
+  [*Vantagem ofensiva* \ $d_i$: eficácia contra os adversários.],
+  [*Resistência defensiva* \ $r_i$: proteção contra os ataques adversários.],
+)
+
+Os pesos $alpha, beta, gamma$ definem a importância de cada fator.
+
+$ max Z = sum_(i in N) c_i x_i $
+
+Escolhemos o time com a maior soma de escores.
+$x_i = 1$ se o Pokémon $i$ for escolhido e $x_i = 0$ caso contrário.
 ]
 
-#slide[2. Modelo Matemático: Vantagem e Resistência de Tipos][
-Seja $T_i$ o conjunto de tipos (1 ou 2) do Pokémon $i$. Para um tipo
-atacante $t in T_i$ contra o defensor $j$, o multiplicador total é
-$m(t,j)= product_(d in T_j) f(t,d)$, onde
-$f in { 0,1 / 2,1,2 }$.
+#slide[2. Modelo Matemático: Força de ataque ($v_i$)][
+O poder bruto de cada Pokémon é seu maior atributo ofensivo:
 
-Definimos o escore do tipo $t$ contra $j$ e a #strong[vantagem ofensiva]
-$upright("Advantage")(i,j)$:
+$ a_i = max("Atk"_i, "SpA"_i) $
+
+*Atk* mede ataque físico; *SpA*, ataque especial.
+Usamos o maior dos dois para contemplar ambos os perfis ofensivos.
+
+Normalizamos entre o menor e o maior valor dos candidatos:
+
+$ v_i = frac(a_i - min_(k in N) a_k, max_(k in N) a_k - min_(k in N) a_k) $
+
+Assim, $v_i in [0,1]$: maior força de ataque corresponde a maior $v_i$.
+]
+
+#slide[2. Modelo Matemático: Vantagem ofensiva ($d_i$)][
+$T_i$ contém os tipos (um ou dois) de $i$; $j$ é um adversário.
+O multiplicador de um tipo atacante $t$ contra $j$ é:
+
+$ m(t,j) = product_(q in T_j) f(t,q), quad f(t,q) in {0, 1/2, 1, 2} $
+
+Cada tipo defensor $q$ pode tornar o ataque imune, resistido, neutro ou super efetivo:
 
 $ s(t,j) = cases(
   +2 & "se" m(t,j) > 1 quad ("super efetivo"),
   -2 & "se" m(t,j) < 1 quad ("resistido ou imune"),
   0 & "se" m(t,j) = 1 quad ("neutro")
 ) $
+
 $ "Advantage"(i,j) = sum_(t in T_i) s(t,j) in [-4,4] $
 
-- #strong[Resistência defensiva:] Espelho da vantagem ofensiva quando os
-  tipos de $j$ atacam $i$:
-  $ upright("Resist")(i,j)= - upright("Advantage")(j,i)= - sum_(t in T_j) s(t,i) $
-- #strong[Aproximação chave:] Os golpes de cada Pokémon são aproximados
-  apenas pelos seus #strong[tipos base] (efeito STAB), mantendo o modelo
-  linear.
+Para o conjunto adversário $U$, com $|U|$ Pokémon:
+$ d_i = frac(sum_(j in U) "Advantage"(i,j), 4 |U|) in [-1,1] $
 ]
 
-#slide[2. Modelo Matemático: Construção dos Coeficientes][
-Para cada Pokémon $i in N$, agregamos três critérios normalizados na
-mesma escala:
+#slide[2. Modelo Matemático: Resistência defensiva ($r_i$)][
+Agora invertemos os papéis: os tipos do adversário $j$ atacam o Pokémon $i$.
+Resistir é bom; receber um ataque super efetivo é ruim.
 
-+ #strong[Força de ataque ($v_i in\[0,1\]$):] maior atributo ofensivo
-  ($a_i = max(upright("Atk")_i,upright("SpA")_i)$) normalizado via
-  min-max: $ v_i = frac(a_i - min_k a_k, max_k a_k - min_k a_k) $
-+ #strong[Vantagem ofensiva normalizada ($d_i in\[- 1,1\]$):] eficácia
-  contra o conjunto adversário $U$, ponderada pela probabilidade
-  arbitrária $P_j$ e dividida pelo máximo teórico ($4 sum P_j$):
-  $ d_i = frac(sum_(j in U) P_j thin upright("Advantage")(i,j), 4 sum_(j in U) P_j) $
-+ #strong[Resistência defensiva normalizada ($r_i in\[- 1,1\]$):]
-  $ r_i = frac(sum_(j in U) P_j thin upright("Resist")(i,j), 4 sum_(j in U) P_j) $
+$ "Resist"(i,j) = -"Advantage"(j,i) = -sum_(t in T_j) s(t,i) $
 
-#emph[(Caso $U = emptyset$, define-se $d_i = r_i = 0$\.)]
+Agregamos a resistência contra todos os Pokémon adversários:
+
+$ r_i = frac(sum_(j in U) "Resist"(i,j), 4 |U|) in [-1,1] $
+
+*Sem adversários conhecidos:* se $U = emptyset$, definimos $d_i = r_i = 0$.
+
+*Aproximação de combate:* os ataques são representados apenas pelos tipos base
+de cada Pokémon (STAB); golpes de cobertura não são considerados.
 ]
 
-#slide[2. Modelo Matemático: Função Objetivo][
-A função objetivo maximiza a qualidade agregada do time por meio de uma
-#strong[soma ponderada multiobjetivo]:
+#slide[2. Modelo Matemático: Objetivo e restrições][
+Com os três fatores calculados, somamos os escores dos Pokémon escolhidos:
 
-$ max Z = sum_(i in N) c_i x_i,quad upright("onde") quad c_i = alpha v_i + beta d_i + gamma r_i $
+$ max Z = sum_(i in N) c_i x_i, quad c_i = alpha v_i + beta d_i + gamma r_i $
 
-- #strong[Por que somar os termos?] Como $v_i in\[0,1\]$ e
-  $d_i,r_i in\[- 1,1\]$ estão na mesma ordem de grandeza, os pesos
-  $alpha,beta,gamma in\[0,1\]$ controlam diretamente o
-  #emph[trade-off] estratégico entre #strong[poder bruto] ($alpha$),
-  #strong[pressão ofensiva de tipos] ($beta$) e #strong[solidez
-  defensiva] ($gamma$).
-- #strong[Papel dos parâmetros:] Apenas a proporção entre
-  $(alpha,beta,gamma)$ altera a equipe ótima; zerar um peso desliga
-  o critério correspondente.
-- #strong[Preservação da linearidade:] Por serem parâmetros fixos
-  definidos #emph[a priori] (e não variáveis de decisão), o coeficiente
-  $c_i$ é constante para cada candidato $i$, garantindo que $Z$
-  permaneça estritamente linear.
+- *Escalas comparáveis:* $v_i in [0,1]$ e $d_i, r_i in [-1,1]$.
+- *Pesos fixos:* $alpha, beta, gamma in [0,1]$ expressam a estratégia.
+  Só sua proporção altera a solução; peso zero desliga um critério.
+- *Objetivo linear:* fatores e pesos são calculados ou definidos antes
+  da otimização; cada $c_i$ é constante.
+
+*Quais times podemos escolher?* A seguir, impomos as restrições de tamanho,
+orçamento, permanência e exclusividade.
 ]
 
 #slide[2. Modelo Matemático: Todas as Restrições do Draft (1/2)][
@@ -222,7 +214,7 @@ Configuração: $G = 6$ Pokémon, orçamento $C = 80$, pesos
 $(alpha,beta,gamma)=(0,5; quad 0,5; quad 0)$, semente 17.
 
 - #strong[Escolha do adversário (Rodada 1):] #emph[Hisuian Typhlosion]
-  (Fogo/Fantasma, tier RU, $P_j = 0,60$).
+  (Fogo/Fantasma, tier RU).
 - #strong[Top \#1 Recomendado pelo MILP:] #strong[Mega Tyranitar]
   - #strong[Tipos:] Rocha / Sombrio (super efetivo contra ambos os tipos
     do oponente $arrow.r upright("Advantage") = + 4$, $d_i = + 1,00$).
@@ -289,10 +281,9 @@ $ max quad Z = sum_(i in R)(beta d_i + gamma r_i)x_i #h(2em) upright("s.a.") qua
   Pokémon $i$ e não dos pares $(i,k)$ do próprio time, o modelo pode
   recomendar #strong[tipos repetidos] (ex.: 5 Fadas em $beta$ dominante)
   sem penalizar redundância.
-- #strong[Aproximações de combate e calibragem:] Desconsidera golpes de
+- #strong[Aproximações de combate:] Desconsidera golpes de
   cobertura (#emph[coverage moves]), velocidade (#emph[Speed tiers]),
-  habilidades/itens e utiliza probabilidades de uso $P_j$ arbitradas
-  manualmente.
+  habilidades e itens.
 - #strong[Casos especiais:]
   - #emph[Rodada 1 sem histórico ($U = emptyset$):] $d_i = r_i = 0$,
     reduzindo o problema ao critério puro de poder/custo.
@@ -305,7 +296,6 @@ $ max quad Z = sum_(i in R)(beta d_i + gamma r_i)x_i #h(2em) upright("s.a.") qua
   sinergia
   $- lambda sum_(i < k) upright("Overlap")(T_i,T_k)x_i x_k$ para
   diversificar tipos.
-- #strong[Calibragem empírica de $P_j$ e Lookahead:] Estimar $P_j$ a
-  partir de estatísticas reais de uso da Smogon e simular escolhas
-  futuras dos adversários (já prototipado via flag `--lookahead`).
+- #strong[Lookahead:] Simular escolhas futuras dos adversários
+  (já prototipado via flag `--lookahead`).
 ]
