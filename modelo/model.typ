@@ -16,32 +16,6 @@
 
 Estas definições valem para os dois modelos (draft e duelo).
 
-== Tiers e probabilidade de uso
-
-Cada Pokémon $j$ pertence a uma tier do arquivo de dados, que é agrupada em uma das seis tiers de uso da Smogon. A probabilidade de uso $P_j$ depende apenas desse grupo:
-
-- $"OU"$ (OverUsed): a tier principal do competitivo, com os Pokémon mais usados e fortes.
-- $"UU"$ (UnderUsed): não tiveram uso suficiente para ficar em OU, mas ainda são muito competitivos.
-- $"RU"$ (RarelyUsed): Pokémon que caíram de UU, de poder intermediário.
-- $"NU"$ (NeverUsed): estatísticas ou tipagens mais limitadas, mas viáveis entre si.
-- $"PU"$ (PartiallyUsed): uma das tiers mais baixas baseadas em uso.
-- $"ZU"$ (ZeroUsed): Pokémon que não atingiram uso nem em PU (evoluções intermediárias, Pokémon muito fracos etc.).
-
-#figure(
-  table(
-    columns: (auto, auto, auto),
-    align: center,
-    [*Tier no arquivo*], [*Grupo de uso*], [*$P_j$*],
-    [OU, UUBL, Uber, AG], [OU], [0,95],
-    [UU, RUBL], [UU], [0,80],
-    [RU, NUBL], [RU], [0,60],
-    [NU, PUBL], [NU], [0,40],
-    [PU, ZUBL], [PU], [0,20],
-    [ZU, LC, NFE, CAP, CAP LC, CAP NFE, Illegal], [ZU], [0,05],
-  ),
-  caption: [Mapeamento de tiers para probabilidade de uso. Tiers ausentes da tabela são tratadas como ZU.],
-)
-
 == Vantagem de tipo (ataque)
 
 Seja $T_i$ o conjunto de tipos (um ou dois) do Pokémon $i$. Para um tipo atacante $t$ e o Pokémon defensor $j$, o multiplicador de dano é o produto, sobre os tipos $d in T_j$, de $f(t,d)$, onde $f = 2$ (super efetivo), $f = 1/2$ (pouco efetivo), $f = 0$ (imune) ou $f = 1$ (neutro). Se houver imunidade, o multiplicador total é $0$. Denotando-o por $m(t,j)$, definimos o escore de um tipo:
@@ -70,8 +44,8 @@ Os valores possíveis são os mesmos de $"Advantage"$. *Observação:* os ataque
 
 Dado um conjunto $S$ de Pokémon adversários (o conjunto $U$ no draft, o conjunto $O$ no duelo), definimos, para cada Pokémon $i$, os termos de vantagem e de resistência normalizados para $[-1, 1]$:
 
-$ d_i = (sum_(j in S) P_j "Advantage"(i,j)) / (4 sum_(j in S) P_j), quad
-  r_i = (sum_(j in S) P_j "Resist"(i,j)) / (4 sum_(j in S) P_j) $
+$ d_i = (sum_(j in S) "Advantage"(i,j)) / (4 sum_(j in S) ), quad
+  r_i = (sum_(j in S) "Resist"(i,j)) / (4 sum_(j in S)) $
 
 Se $S = emptyset$, definem-se $d_i = r_i = 0$.
 
@@ -92,7 +66,9 @@ Só a proporção entre os pesos altera a solução. Um peso igual a $0$ desliga
 - $N$: conjunto de todos os Pokémon disponíveis ($i = 1, dots.h, n$).
 - $A$: Pokémon já escolhidos por mim.
 - $U$: Pokémon já escolhidos pelo adversário (um novo a cada rodada).
-- $"Ubers"$: Pokémon banidos (tiers Uber e AG).
+- $"Ban"$: Pokémon banidos
+- $"Mega"$: Mega evoluções
+- $E$: número máximo permitido de mega evolução por time
 - $G$: número total de Pokémon que cada jogador escolhe.
 - $M$: rodada atual ($M in {1, dots.h, G}$).
 - $C$: orçamento total de pontos.
@@ -105,7 +81,7 @@ Só a proporção entre os pesos altera a solução. Um peso igual a $0$ desliga
 == Variáveis de decisão
 
 $ x_i = cases(
-  1 & "se o Pokémon" i "for escolhido para o time",
+  1 & "se o Pokémon" i "for escolhido para o meu time",
   0 & "caso contrário"
 ) quad forall i in N $
 
@@ -133,12 +109,16 @@ $ max Z = sum_(i in N) c_i x_i, quad
 4. *Pokémon escolhidos pelo adversário ou banidos:*
    $ x_i = 0 quad forall i in (U union "Ubers") backslash A $
 
+5. *Restrição de apenas uma mega evolução por time*
+   $ sum_{i  in "Mega"} x_i <= E $
+
 == Modelo final
 
 $
   &"max" && Z = sum_(i in N) (alpha v_i + beta d_i + gamma r_i) x_i \
   &"s.a." && sum_(i in N) x_i = M \
   &       && sum_(i in N) w_i x_i <= B_M \
+  &       && sum_{i  in "Mega"} x_i <= E\
   &       && x_i = 1 quad forall i in A \
   &       && x_i = 0 quad forall i in (U union "Ubers") backslash A \
   &       && x_i in {0,1} quad forall i in N
@@ -156,6 +136,7 @@ $
 - $R$: conjunto de todos os Pokémon do meu roster na liga.
 - $O$: conjunto de Pokémon do adversário.
 - $K$: número exato de Pokémon a escolher para a batalha ($K <= |R|$).
+- $"Mega"$: Mega evoluções
 - $d_i$ e $r_i$: calculados com $S = O$ (definições comuns).
 - $beta, gamma$: pesos da vantagem ofensiva e da resistência.
 
@@ -178,13 +159,16 @@ Com $beta = 1$ e $gamma = 0$, obtém-se o modelo original de vantagem pura, $sum
 
 1. *Tamanho do time (exatamente $K$ integrantes):*
    $ sum_(i in R) x_i = K $
+2. *Em torneios Draft League normalmente só pode uma mega evolução por partida:*
+   $ sum_(i in "Mega")x_i <= 1 $
 
 == Modelo final
 
 $
   &"max" && Z = sum_(i in R) (beta d_i + gamma r_i) x_i \
   &"s.a." && sum_(i in R) x_i = K \
-  &       && x_i in {0,1} quad forall i in R
+  &       && sum_(i in "Mega")x_i <= 1\
+  &       && x_i in {0,1} quad forall i in R\
 $
 
 == Observação
