@@ -1,6 +1,11 @@
 import csv
+import sys
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from model1 import load_data
 
 EXPECTED_COUNTS = {
     # A tabela de custos omite Unown, Koraidon e Miraidon.
@@ -40,6 +45,15 @@ class TestPokemon(unittest.TestCase):
             actual_count = sum(1 for row in csv.DictReader(file))
 
         self.assertEqual(actual_count, sum(EXPECTED_COUNTS.values()))
+
+    def test_loaded_pokemon_count(self):
+        data_directory = Path(__file__).resolve().parents[1]
+        pokemon, _, _ = load_data(
+            data_directory / "costs_pokemon.csv",
+            data_directory / "stats_pokemon.csv",
+        )
+
+        self.assertEqual(len(pokemon), sum(EXPECTED_COUNTS.values()))
 
 
 if __name__ == "__main__":
