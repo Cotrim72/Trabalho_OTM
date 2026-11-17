@@ -5,8 +5,8 @@ Pokémon: recomendação por otimização (MILP) para n jogadores.
 
 Modelo (resumo):
     max  Z = sum_i ( alpha*v_i + beta*d_i + gamma*r_i ) x_i
-        d_i = sum_{j in U}* Advantage(i,j) / (4 sum_j )   (vantagem ofensiva)
-        r_i = sum_{j in U}* Resist(i,j)    / (4 sum_j )   (resistência de tipo)
+        d_i = sum_{j in U} Advantage(i,j) / (4 |U|)   (vantagem ofensiva)
+        r_i = sum_{j in U} Resist(i,j)    / (4 |U|)   (resistência de tipo)
         Resist(i,j) = -Advantage(j,i)
     s.a. sum_i x_i = M                  (M = tamanho do time nesta decisão)
          sum_i w_i x_i <= C             (orçamento)
@@ -17,7 +17,8 @@ Modelo (resumo):
 
 U é a união dos Pokémon de TODOS os adversários (n-1 adversários).
 
-Adversários simulados ("profissionais"): cada escolha é sorteada com peso
+O modelo de otimização (acima) NÃO usa probabilidades. Elas existem só na
+simulação dos adversários ("profissionais"): cada escolha é sorteada com peso
     w_j = P_j^tau * exp( sigma * (0.25*cobertura_nova - 0.5*sobreposição_de_fraquezas) )
 onde P_j é a probabilidade de uso do tier (tau = --opp-sharpness concentra a
 escolha nos tiers altos; tau=1 reproduz o sorteio ponderado simples). O termo de
@@ -135,9 +136,9 @@ def resistance(types_i, types_j) -> int:
 
 
 # --------------------------------------------------------------------------
-# 2. Tiers -> probabilidade de uso P_j
+# 2. Tiers -> probabilidade de uso P_j (usada SÓ na simulação dos adversários)
 # --------------------------------------------------------------------------
-TIER_GROUP = {  # tier do CSV -> tier "de uso" do modelo
+TIER_GROUP = {  # tier do CSV -> tier "de uso" do adversário
     "OU": "OU", "UUBL": "OU", "Uber": "OU", "AG": "OU",
     "UU": "UU", "RUBL": "UU",
     "RU": "RU", "NUBL": "RU",
@@ -207,7 +208,7 @@ def load_data(costs_path, stats_path, attack_mode="max", ban_illegal=False):
     df["types"] = df.apply(
         lambda r: tuple(t for t in (r["Type 1"], r["Type 2"]) if isinstance(t, str)), axis=1)
     df["tier_group"] = df["Tier"].map(TIER_GROUP).fillna("ZU")
-    df["P"] = df["tier_group"].map(P_TIER)
+    df["P"] = df["tier_group"].map(P_TIER)             # só para os adversários
     df["banned"] = df["Tier"].isin(UBER_TIERS)
     df["mega"] = df["name"].str.match(r"^Mega ")      # conjunto "Mega"
     if attack_mode == "atk":
@@ -244,8 +245,8 @@ class Config:
 
 def objective_coeffs(df, U_idx, cfg):
     """c_i = alpha*v_i + beta*d_i + gamma*r_i, com
-        d_i = sum_j P_j Adv(i,j)    / (4 sum_j P_j)   (vantagem ofensiva, em [-1,1])
-        r_i = sum_j P_j Resist(i,j) / (4 sum_j P_j)   (resistência de tipo, em [-1,1])
+        d_i = sum_j Adv(i,j)    / (4 |U|)   (vantagem ofensiva, em [-1,1])
+        r_i = sum_j Resist(i,j) / (4 |U|)   (resistência de tipo, em [-1,1])
     Os termos de tipo são normalizados para ficar na mesma escala de v_i.
     U_idx = Pokémon de todos os adversários.
     Retorna (c, adv_term, res_term)."""
@@ -253,14 +254,11 @@ def objective_coeffs(df, U_idx, cfg):
     adv_term = np.zeros(n)
     res_term = np.zeros(n)
     if U_idx:
-        Pj = df["P"].values[U_idx]
-        norm = 4.0 * Pj.sum()
+        norm = 4.0 * len(U_idx)
         types = df["types"].values
         for i in range(n):
-            adv_term[i] = sum(Pj[k] * advantage(types[i], types[j])
-                              for k, j in enumerate(U_idx)) / norm
-            res_term[i] = sum(Pj[k] * resistance(types[i], types[j])
-                              for k, j in enumerate(U_idx)) / norm
+            adv_term[i] = sum(advantage(types[i], types[j]) for j in U_idx) / norm
+            res_term[i] = sum(resistance(types[i], types[j]) for j in U_idx) / norm
     c = cfg.alpha * df["v"].values + cfg.beta * adv_term + cfg.gamma * res_term
     return c, adv_term, res_term
 
@@ -348,7 +346,7 @@ def best_teams(df, U_idx, cfg, top_k=3):
 
 
 # --------------------------------------------------------------------------
-# 5. Adversários (sorteio / digitação)
+# 5. Adversários (sorteio ponderado / digitação)
 # --------------------------------------------------------------------------
 def _affordable(costs, budget, slots_left):
     """Máscara dos Pokémon que ainda deixam o time completável dentro do orçamento:
