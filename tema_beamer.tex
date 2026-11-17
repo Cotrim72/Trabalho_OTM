@@ -1,0 +1,36 @@
+% Tema enxuto para a apresentação em Beamer.
+\usetheme{default}
+\usefonttheme{professionalfonts}
+\setbeamersize{text margin left=1.15cm, text margin right=1.15cm}
+
+\definecolor{Navy}{HTML}{12304A}
+\definecolor{PokemonRed}{HTML}{B43A3A}
+\definecolor{Ink}{HTML}{1E2933}
+\definecolor{Mist}{HTML}{EDF3F7}
+
+\setbeamercolor{normal text}{fg=Ink,bg=white}
+\setbeamercolor{title}{fg=Navy}
+\setbeamercolor{subtitle}{fg=PokemonRed}
+\setbeamercolor{author}{fg=Ink}
+\setbeamercolor{institute}{fg=Ink}
+\setbeamercolor{date}{fg=Ink}
+\setbeamercolor{frametitle}{fg=Navy,bg=white}
+\setbeamercolor{structure}{fg=Navy}
+\setbeamercolor{block title}{fg=white,bg=Navy}
+\setbeamercolor{block body}{fg=Ink,bg=Mist}
+\setbeamercolor{alerted text}{fg=PokemonRed}
+
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{itemize item}{\color{PokemonRed}\scriptsize$\blacktriangleright$}
+\setbeamertemplate{itemize subitem}{\color{PokemonRed}\tiny$\blacktriangleright$}
+\setbeamertemplate{frametitle}{%
+  \vspace{0.35cm}\insertframetitle\par\vspace{-0.05cm}%
+  {\color{PokemonRed}\rule{\textwidth}{0.7pt}}\vspace{0.2cm}%
+}
+\setbeamertemplate{footline}{%
+  \hspace{1.15cm}\color{Navy}\rule{0.72\textwidth}{0.35pt}%
+  \hfill\color{Navy}\footnotesize\insertframenumber\,/\,7\hspace{1.15cm}\vspace{0.22cm}%
+}
+
+\setlength{\parskip}{0.35em}
+\setlength{\leftmargini}{1.1em}
