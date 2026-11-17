@@ -5,16 +5,26 @@ Pokémon: recomendação por otimização (MILP) para n jogadores.
 
 Modelo (resumo):
     max  Z = sum_i ( alpha*v_i + beta*d_i + gamma*r_i ) x_i
-        d_i = sum_{j in U} P_j * Advantage(i,j) / (4 sum_j P_j)   (vantagem ofensiva)
-        r_i = sum_{j in U} P_j * Resist(i,j)    / (4 sum_j P_j)   (resistência de tipo)
+        d_i = sum_{j in U}* Advantage(i,j) / (4 sum_j )   (vantagem ofensiva)
+        r_i = sum_{j in U}* Resist(i,j)    / (4 sum_j )   (resistência de tipo)
         Resist(i,j) = -Advantage(j,i)
     s.a. sum_i x_i = M                  (M = tamanho do time nesta decisão)
          sum_i w_i x_i <= C             (orçamento)
+         sum_{i in Mega} x_i <= E       (no máximo E Mega evoluções por time)
          x_i = 1  para i em A           (meus Pokémon já escolhidos)
          x_i = 0  para i em U ∪ Ubers   (dos adversários / banidos)
          x_i ∈ {0,1}
 
 U é a união dos Pokémon de TODOS os adversários (n-1 adversários).
+
+Adversários simulados ("profissionais"): cada escolha é sorteada com peso
+    w_j = P_j^tau * exp( sigma * (0.25*cobertura_nova - 0.5*sobreposição_de_fraquezas) )
+onde P_j é a probabilidade de uso do tier (tau = --opp-sharpness concentra a
+escolha nos tiers altos; tau=1 reproduz o sorteio ponderado simples). O termo de
+sinergia (sigma = --opp-synergy, 0 desliga) favorece quem acrescenta tipos ainda
+não cobertos ofensivamente e evita empilhar fraquezas em comum. Os times respeitam
+o orçamento C, o limite E de Megas e, na última vaga, gastam o orçamento restante.
+--uniform-opponent ignora tudo isso (sorteio uniforme).
 
 Há dois modos de jogo (--mode):
 
@@ -199,6 +209,7 @@ def load_data(costs_path, stats_path, attack_mode="max", ban_illegal=False):
     df["tier_group"] = df["Tier"].map(TIER_GROUP).fillna("ZU")
     df["P"] = df["tier_group"].map(P_TIER)
     df["banned"] = df["Tier"].isin(UBER_TIERS)
+    df["mega"] = df["name"].str.match(r"^Mega ")      # conjunto "Mega"
     if attack_mode == "atk":
         df["attack"] = df["Atk"]
     elif attack_mode == "spa":
@@ -207,7 +218,7 @@ def load_data(costs_path, stats_path, attack_mode="max", ban_illegal=False):
         df["attack"] = df[["Atk", "SpA"]].max(axis=1)
     rng = df["attack"].max() - df["attack"].min()
     df["v"] = (df["attack"] - df["attack"].min()) / (rng if rng else 1)  # normalizado em [0,1]
-    cols = ["name", "types", "Tier", "tier_group", "P", "cost", "attack", "v", "banned",
+    cols = ["name", "types", "Tier", "tier_group", "P", "cost", "attack", "v", "banned", "mega",
             "HP", "Atk", "Def", "SpA", "SpD", "Spe"]
     return df[cols], missing, n_illegal
 
@@ -226,6 +237,9 @@ class Config:
     reserve_budget: bool = True   # reserva custo mínimo p/ as rodadas futuras (draft)
     lookahead: bool = False       # (draft) resolve o time completo (sum x = G) em vez de sum x = M
     allow_ubers: bool = False
+    E: int = 1                # nº máximo de Mega evoluções por time
+    opp_sharp: float = 2.0    # tau: expoente aplicado a P_j na escolha dos adversários
+    opp_synergy: float = 1.0  # sigma: peso da sinergia de tipos dos adversários (0 = desliga)
 
 
 def objective_coeffs(df, U_idx, cfg):
@@ -280,6 +294,9 @@ def solve(df, A_idx, U_idx, M, cfg, extra_ban=(), exclude_sets=()):
 
     constraints = [LinearConstraint(np.ones((1, n)), size, size),
                    LinearConstraint(w.reshape(1, -1), -np.inf, budget)]
+    mega = df["mega"].values.astype(float)
+    if cfg.E is not None and mega.any():             # sum_{i in Mega} x_i <= E
+        constraints.append(LinearConstraint(mega.reshape(1, -1), -np.inf, cfg.E))
     for team in exclude_sets:
         row = np.zeros((1, n))
         row[0, list(team)] = 1
@@ -346,12 +363,54 @@ def _affordable(costs, budget, slots_left):
     return costs + rest <= budget
 
 
-def opponent_pick(df, taken, cfg, rng, uniform=False, budget_left=None, slots_left=1):
-    """Sorteia um Pokémon para um adversário. Se budget_left for dado, só sorteia
-    entre os que mantêm o time completável dentro do orçamento (times legais)."""
-    banned = df["banned"].values
-    avail = np.array([i for i in range(len(df))
-                      if i not in taken and (cfg.allow_ubers or not banned[i])], dtype=int)
+_TYPE_CACHE = {}
+
+
+def type_matrices(df):
+    """W[i,t] = True se o Pokémon i é fraco ao tipo t (multiplicador > 1);
+    S[i,u] = True se algum tipo de i (STAB) é super efetivo contra o tipo puro u."""
+    c = _TYPE_CACHE.get(id(df))
+    if c is not None and c[0] is df:
+        return c[1], c[2]
+    types = df["types"].values
+    W = np.array([[type_multiplier(t, ti) > 1 for t in TYPES] for ti in types], dtype=bool)
+    S = np.array([[any(type_multiplier(a, (u,)) > 1 for a in ti) for u in TYPES]
+                  for ti in types], dtype=bool)
+    _TYPE_CACHE[id(df)] = (df, W, S)
+    return W, S
+
+
+def opponent_weights(df, avail, team, cfg, budget_left, slots_left):
+    """Pesos de sorteio dos candidatos 'avail' para um adversário que já tem 'team'.
+        w_j = P_j^tau * exp(sigma*(0.25*cobertura_nova - 0.5*sobreposição))
+    cobertura_nova: nº de tipos defensores que j acerta super efetivamente e o time ainda não;
+    sobreposição  : média, sobre o time, de fraquezas de tipo em comum com j."""
+    w = df["P"].values[avail] ** cfg.opp_sharp
+    if cfg.opp_synergy > 0 and len(team):
+        W, S = type_matrices(df)
+        t = np.array(team, dtype=int)
+        overlap = (W[avail].astype(int) @ W[t].astype(int).T).mean(axis=1)
+        new_cov = (S[avail] & ~S[t].any(axis=0)).sum(axis=1)
+        w = w * np.exp(cfg.opp_synergy * (0.25 * new_cov - 0.5 * overlap))
+    if budget_left is not None and slots_left == 1:      # última vaga: não deixa orçamento sobrando
+        w = w * np.exp(-0.3 * np.maximum(budget_left - df["cost"].values[avail], 0))
+    return w
+
+
+def opponent_pick(df, taken, cfg, rng, uniform=False, budget_left=None, slots_left=1, team=()):
+    """Sorteia um Pokémon para um adversário que já possui 'team'. Só entram candidatos
+    livres, não banidos, que respeitam o limite E de Megas e que mantêm o time completável
+    dentro do orçamento (times legais). Os pesos vêm de opponent_weights()."""
+    n = len(df)
+    ok = np.ones(n, dtype=bool)
+    if len(taken):
+        ok[np.array(list(taken), dtype=int)] = False
+    if not cfg.allow_ubers:
+        ok &= ~df["banned"].values
+    mega = df["mega"].values
+    if cfg.E is not None and len(team) and mega[np.array(team, dtype=int)].sum() >= cfg.E:
+        ok &= ~mega
+    avail = np.flatnonzero(ok)
     if budget_left is not None:
         costs = df["cost"].values[avail].astype(float)
         mask = _affordable(costs, budget_left, slots_left)
@@ -359,21 +418,24 @@ def opponent_pick(df, taken, cfg, rng, uniform=False, budget_left=None, slots_le
             avail = avail[mask]
         else:  # não há como caber: escolhe o mais barato para minimizar o estouro
             return int(avail[np.argmin(costs)])
-    p = np.ones(len(avail)) if uniform else df["P"].values[avail]
+    p = np.ones(len(avail)) if uniform else opponent_weights(df, avail, team, cfg,
+                                                              budget_left, slots_left)
+    if not np.isfinite(p).all() or p.sum() <= 0:
+        p = df["P"].values[avail]
     return int(rng.choice(avail, p=p / p.sum()))
 
 
 def random_team(df, taken, cfg, rng, uniform=False):
-    """Time adversário completo (G Pokémon) sorteado, respeitando o orçamento C."""
+    """Time adversário completo (G Pokémon) sorteado, respeitando o orçamento C e o limite E de Megas."""
     team = []
     for s in range(cfg.G):
         spent = df["cost"].values[team].sum() if team else 0.0
         team.append(opponent_pick(df, set(taken) | set(team), cfg, rng, uniform,
-                                  budget_left=cfg.C - spent, slots_left=cfg.G - s))
+                                  budget_left=cfg.C - spent, slots_left=cfg.G - s, team=team))
     return team
 
 
-def read_opponent_team(df, k, G, C, taken):
+def read_opponent_team(df, k, G, C, taken, E=None):
     """Digitação manual de um time adversário completo."""
     team = []
     print(f"\nAdversário {k + 1}: digite {G} Pokémon")
@@ -387,6 +449,8 @@ def read_opponent_team(df, k, G, C, taken):
         print(f"    -> {df['name'].iloc[j]}")
     if df["cost"].values[team].sum() > C:
         print(f"  aviso: esse time custa {df['cost'].values[team].sum():.0f}, acima do orçamento C={C:.0f}.")
+    if E is not None and df["mega"].values[team].sum() > E:
+        print(f"  aviso: esse time tem {int(df['mega'].values[team].sum())} Megas, acima do limite E={E}.")
     return team
 
 
@@ -481,10 +545,12 @@ def choose_mode(arg):
 
 def configure(args, df, allow_ubers):
     cfg = Config(allow_ubers=allow_ubers, reserve_budget=not args.no_reserve,
-                 lookahead=args.lookahead)
+                 lookahead=args.lookahead, E=args.max_mega,
+                 opp_sharp=args.opp_sharpness, opp_synergy=args.opp_synergy)
     cfg.n_players = max(ask("Nº de jogadores (n = você + n-1 adversários)", args.players, int), 2)
     cfg.G = max(ask("Nº total de Pokémon por jogador (G)", cfg.G, int), 1)
     cfg.C = ask("Orçamento total (C)", cfg.C, float)
+    cfg.E = max(ask("Máx. de Mega evoluções por time (E)", cfg.E, int), 0)
     cfg.alpha = ask("Peso da força de ataque (alpha, 0-1)", cfg.alpha, float)
     cfg.beta = ask("Peso da vantagem de tipos (beta, 0-1)", cfg.beta, float)
     cfg.gamma = ask("Peso da resistência de tipos (gamma, 0-1)", cfg.gamma, float)
@@ -529,9 +595,12 @@ def play_draft(df, cfg, args, rng):
             else:
                 spent = df["cost"].values[opp[k]].sum() if opp[k] else 0.0
                 j = opponent_pick(df, taken, cfg, rng, args.uniform_opponent,
-                                  budget_left=cfg.C - spent, slots_left=cfg.G - len(opp[k]))
+                                  budget_left=cfg.C - spent, slots_left=cfg.G - len(opp[k]),
+                                  team=opp[k])
             if df["cost"].values[opp[k]].sum() + df["cost"].iloc[j] > cfg.C:
                 print(f"  aviso: o time do adversário {k + 1} passa do orçamento C={cfg.C:.0f}.")
+            if df["mega"].values[opp[k] + [j]].sum() > cfg.E:
+                print(f"  aviso: o time do adversário {k + 1} passa do limite de Megas E={cfg.E}.")
             opp[k].append(j)
             this_round.append(j)
             r = df.iloc[j]
@@ -575,6 +644,9 @@ def play_draft(df, cfg, args, rng):
                 if not cfg.allow_ubers and df["banned"].iloc[pick]:
                     print("  esse Pokémon é Uber/AG (banido).")
                     continue
+            if df["mega"].values[A].sum() + df["mega"].iloc[pick] > cfg.E:
+                print(f"  passa do limite de Mega evoluções (E={cfg.E}).")
+                continue
             if df["cost"].values[A].sum() + df["cost"].iloc[pick] > cfg.C:
                 print("  estoura o orçamento!")
                 continue
@@ -639,7 +711,7 @@ def play_game(df, cfg, args, rng):
         # --- times adversários (disjuntos entre si) ---
         opp, taken = [], set()
         for k in range(n_opp):
-            team = (read_opponent_team(df, k, cfg.G, cfg.C, taken) if args.manual_opponent
+            team = (read_opponent_team(df, k, cfg.G, cfg.C, taken, cfg.E) if args.manual_opponent
                     else random_team(df, taken, cfg, rng, args.uniform_opponent))
             opp.append(team)
             taken |= set(team)
@@ -675,7 +747,15 @@ def main():
     ap.add_argument("--attack", choices=["max", "atk", "spa"], default="max",
                     help="v_i = max(Atk,SpA) (padrão), só Atk, ou só SpA")
     ap.add_argument("--uniform-opponent", action="store_true",
-                    help="adversários sorteiam uniformemente (padrão: ponderado por P_j)")
+                    help="adversários sorteiam uniformemente (ignora tier e sinergia)")
+    ap.add_argument("--opp-sharpness", type=float, default=2.0,
+                    help="tau: adversários sorteiam com peso P_j^tau (1 = ponderado simples; "
+                         "maior = mais concentrado nos tiers altos; padrão 2)")
+    ap.add_argument("--opp-synergy", type=float, default=1.0,
+                    help="sigma: força da sinergia de tipos nas escolhas dos adversários "
+                         "(0 = só tier; padrão 1)")
+    ap.add_argument("--max-mega", type=int, default=1,
+                    help="E: nº máximo de Mega evoluções por time (padrão 1)")
     ap.add_argument("--manual-opponent", action="store_true",
                     help="você digita as escolhas dos adversários em vez de sortear")
     ap.add_argument("--allow-ubers", action="store_true", help="libera Uber/AG (sem a flag, o programa pergunta)")

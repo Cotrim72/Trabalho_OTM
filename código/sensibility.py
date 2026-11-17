@@ -20,12 +20,16 @@ Saída: (1) detalhe dos times nas primeiras sementes, (2) métricas médias por
 cenário, (3) sobreposição média entre os times dos cenários, (4) tipos mais
 frequentes por cenário e, opcionalmente, (5) um CSV com tudo.
 
+Os adversários são sorteados como "profissionais" (peso P_j^tau + sinergia de tipos,
+ver model1.py; controle com --opp-sharpness / --opp-synergy) e o time recomendado
+respeita o limite E de Megas (--max-mega).
+
 Atenção: Z NÃO é comparável entre cenários (os pesos mudam a escala do objetivo);
 compare os times pelas métricas, que não dependem dos pesos.
 
 Requer o model1.py na mesma pasta.
-Uso:  python sensitivity_game.py --costs costs_pokemon.csv --stats stats_pokemon.csv
-      python sensitivity_game.py --players 4 --G 6 --C 80 --seeds 20 --ban-illegal --out resultado.csv
+Uso:  python sensibility.py --costs costs_pokemon.csv --stats stats_pokemon.csv
+      python sensibility.py --players 4 --G 6 --C 80 --seeds 20 --ban-illegal --out resultado.csv
 """
 
 import argparse
@@ -68,14 +72,15 @@ def team_metrics(df, T, U, adv_t, res_t):
         "d_medio": float(adv_t[T].mean()),          # vantagem ofensiva média (P-ponderada)
         "r_medio": float(res_t[T].mean()),          # resistência média (P-ponderada)
         "pares_ofensivos_%": 100.0 * float(off_pos),   # % pares (meu, adv) com vantagem ofensiva
-        "pares_defensivos_ruins_%": 100.0 * float(def_neg),  # % pares em que sou atingido super efetivo
+        "pares_defensivos_ruins_%": 100.0 * float(def_neg),
+        "megas": float(df["mega"].values[T].sum()),  # % pares em que sou atingido super efetivo
         "tipos_distintos": len({t for i in T for t in types[i]}),
     }
 
 
 METRIC_COLS = ["custo", "atk_medio", "d_medio", "r_medio",
-               "pares_ofensivos_%", "pares_defensivos_ruins_%", "tipos_distintos"]
-METRIC_HEAD = ["custo", "atk", "d", "r", "%of+", "%df-", "tipos"]
+               "pares_ofensivos_%", "pares_defensivos_ruins_%", "tipos_distintos", "megas"]
+METRIC_HEAD = ["custo", "atk", "d", "r", "%of+", "%df-", "tipos", "megas"]
 
 
 # --------------------------------------------------------------------------
@@ -165,7 +170,12 @@ def main():
     ap.add_argument("--allow-ubers", action="store_true", help="libera Uber/AG")
     ap.add_argument("--ban-illegal", action="store_true", help="remove o tier Illegal do pool")
     ap.add_argument("--uniform-opponent", action="store_true",
-                    help="adversários sorteiam uniformemente (padrão: ponderado por P_j)")
+                    help="adversários sorteiam uniformemente (ignora tier e sinergia)")
+    ap.add_argument("--opp-sharpness", type=float, default=2.0,
+                    help="tau: peso P_j^tau na escolha dos adversários (padrão 2)")
+    ap.add_argument("--opp-synergy", type=float, default=1.0,
+                    help="sigma: sinergia de tipos dos adversários (0 desliga; padrão 1)")
+    ap.add_argument("--max-mega", type=int, default=1, help="E: máx. de Megas por time (padrão 1)")
     ap.add_argument("--out", default=None, help="CSV de saída com todos os resultados")
     args = ap.parse_args()
 
@@ -177,7 +187,8 @@ def main():
     if args.players * args.G > pool:
         sys.exit(f"Pool insuficiente: {args.players}x{args.G} > {pool}.")
 
-    base = Config(n_players=args.players, G=args.G, C=args.C, allow_ubers=args.allow_ubers)
+    base = Config(n_players=args.players, G=args.G, C=args.C, allow_ubers=args.allow_ubers,
+                  E=args.max_mega, opp_sharp=args.opp_sharpness, opp_synergy=args.opp_synergy)
     scen = make_scenarios(args.dominant)
     names = list(scen)
     n_opp = args.players - 1
@@ -186,7 +197,9 @@ def main():
     print(" SENSIBILIDADE DE alpha / beta / gama  -  modo GAME")
     print("=" * 100)
     print(f"{len(df)} Pokémon no pool | n={args.players} ({n_opp} adversários) | G={args.G} | "
-          f"C={args.C:.0f} | {args.seeds} sementes | dominante={args.dominant:.2f}")
+          f"C={args.C:.0f} | E={args.max_mega} | {args.seeds} sementes | dominante={args.dominant:.2f}")
+    print(f"adversários: tau={args.opp_sharpness:g}, sigma={args.opp_synergy:g}"
+          f"{' (uniforme)' if args.uniform_opponent else ''}")
     for n_, (a, b, g) in scen.items():
         print(f"  {n_:<16} alpha={a:.2f}  beta={b:.2f}  gama={g:.2f}")
 
