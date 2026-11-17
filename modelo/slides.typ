@@ -134,7 +134,7 @@ $ max Z = sum_(i in N) c_i x_i, quad c_i = alpha v_i + beta d_i + gamma r_i $
   da otimização; cada $c_i$ é constante.
 
 *Quais times podemos escolher?* A seguir, impomos as restrições de tamanho,
-orçamento, permanência e exclusividade.
+orçamento, permanência, exclusividade e limite de mega-evoluções.
 ]
 
 #slide[2. Modelo Matemático: Todas as Restrições do Draft (1/2)][
@@ -159,6 +159,9 @@ $F = { i in N : i in.not U union upright("Ubers") } backslash A$:
 + #strong[Exclusividade e banimentos:] Pokémon já escolhidos pelos
   adversários ($U$) ou banidos ($upright("Ubers")$) são bloqueados:
   $ x_i = 0 quad forall i in(U union upright("Ubers")) backslash A $
++ #strong[Limite de mega-evoluções:] $"Mega"$ é o conjunto de mega-evoluções;
+  $E$ é o máximo permitido por equipe (por exemplo, $E = 1$):
+  $ sum_(i in "Mega") x_i <= E $
 + #strong[Domínio binário:] Cada candidato é escolhido integralmente ou
   descartado: $ x_i in { 0,1 } quad forall i in N $
 ]
@@ -171,6 +174,7 @@ rodada $M$:
 $ max quad & Z = sum_(i in N)(alpha v_i + beta d_i + gamma r_i)x_i\
 upright("s.a.") quad & sum_(i in N) x_i = M\
  & sum_(i in N) w_i x_i lt.eq B_M\
+ & sum_(i in "Mega") x_i <= E\
  & x_i = 1 &  & forall i in A\
  & x_i = 0 &  & forall i in(U union upright("Ubers")) backslash A\
  & x_i in { 0,1 } &  & forall i in N $
