@@ -3,10 +3,10 @@ Repositório destinado para o trabalho da disciplina de Otimização do curso de
 
 ## Apresentação
 
-Edite `slides.md` e gere o PowerPoint com:
+Edite `modelo/slides.typ` e gere o PDF com o Typst instalado:
 
 ```powershell
-pandoc modelo/slides.md -t pptx -o modelo/slides.pptx
+typst compile modelo/slides.typ modelo/slides.pdf
 ```
 
-O arquivo usa apenas Markdown padrão, exceto pelas fórmulas matemáticas entre `$` ou `$$`. O PowerPoint permite exportar o arquivo gerado para PDF, se necessário.
+A apresentação usa Typst nativo, sem pacotes externos, em formato 16:9. O fonte e o PDF compilado ficam em `modelo/`, assim como o relatório (`model.typ` e `model.pdf`).
