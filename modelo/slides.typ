@@ -257,6 +257,12 @@ pois a escala muda com os pesos; avaliamos o trade-off pelas métricas
 físicas.
 ]
 
+#slide[3. Solução: Funcionalidades Adicionais][
+- #strong[Interface interativa no terminal:] Sorteia Pokémon oponentes e mostra o modelo em ação em cada rodada.
+- #strong[Mais de 1 recomendação:] Apresenta ao usuário a cada rodada os 5 Pokémon com o maior valor de $Z$ e permite que ele escolha um.
+- #strong[Modelo mais simples para a seleção de um time para uma batalha específica:] Depois do draft, existe um novo problema de decisão a cada batalha, agora com um único time adversário, sem custo por Pokémon e restrito à equipe do draft.
+]
+
 #slide[4. Discussão: Limitações, Casos Especiais e Generalizações Futuras][
 - #strong[Limitação (Separabilidade):] Como $c_i$ depende apenas do
   Pokémon $i$ e não dos pares $(i,k)$ do próprio time, o modelo pode
