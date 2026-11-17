@@ -257,7 +257,7 @@ pois a escala muda com os pesos; avaliamos o trade-off pelas métricas
 físicas.
 ]
 
-#slide[4. Discussão: Limitações e Casos Especiais][
+#slide[4. Discussão: Limitações, Casos Especiais e Generalizações Futuras][
 - #strong[Limitação (Separabilidade):] Como $c_i$ depende apenas do
   Pokémon $i$ e não dos pares $(i,k)$ do próprio time, o modelo pode
   recomendar #strong[tipos repetidos] (ex.: 5 Fadas em $beta$ dominante)
@@ -268,13 +268,8 @@ físicas.
 - #strong[Casos especiais:]
   - #emph[Rodada 1 sem histórico ($U = emptyset$):] $d_i = r_i = 0$,
     reduzindo o problema ao critério puro de poder/custo.
-]
-
-#slide[4. Discussão: Generalizações futuras][
-- #strong[Programação Quadrática Binária (MIQP):] Adicionar termos de
-  sinergia
-  $- lambda sum_(i < k) upright("Overlap")(T_i,T_k)x_i x_k$ para
-  diversificar tipos.
-- #strong[Lookahead:] Simular escolhas futuras dos adversários
-  (já prototipado via flag `--lookahead`).
+- #strong[Generalizações futuras:]
+  - #emph[Programação Quadrática Binária (MIQP)]: Adicionar termos de sinergia
+    $- lambda sum_(i < k) upright("Overlap")(T_i,T_k)x_i x_k$ para
+    diversificar tipos.
 ]
