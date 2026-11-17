@@ -41,13 +41,13 @@
   University] (tiers de uso desde meados dos anos 2000).
 - #strong[Formato Draft League:] Jogadores escolhem equipes exclusivas
   em rodadas alternadas, respeitando um #strong[orçamento fixo de
-  pontos] (cada Pokémon tem um custo proporcional à sua força).
-- #strong[Desafio de decisão:] A cada rodada, o pool encolhe e as
+  pontos] (cada Pokémon tem um custo).
+- #strong[Desafio de decisão:] A cada rodada, as
   escolhas dos adversários alteram quais tipos e estatísticas são mais
   valiosos.
 - #strong[Aplicações atuais:] O problema é isomorfo ao #strong[Problema
   da Mochila com Cardinalidade] (#emph[Cardinality-Constrained
-  Knapsack]), usado em #emph[fantasy sports] (NBA, NFL, Cartola),
+  Knapsack]), usado em #emph[fantasy sports] (ex.: Cartola),
   alocação de portfólios e montagem de equipes sob restrição
   orçamentária.
 ]
@@ -59,8 +59,8 @@ $ c_i = alpha v_i + beta d_i + gamma r_i $
 
 #grid(columns: (1fr, 1fr, 1fr), gutter: 20pt,
   [*Força de ataque* \ $v_i$: poder ofensivo bruto.],
-  [*Vantagem ofensiva* \ $d_i$: eficácia contra os adversários.],
-  [*Resistência defensiva* \ $r_i$: proteção contra os ataques adversários.],
+  [*Vantagem ofensiva* \ $d_i$: eficácia contra os adversários já selecionados.],
+  [*Resistência defensiva* \ $r_i$: proteção contra os ataques dos adversários já selecionados.],
 )
 
 Os pesos $alpha, beta, gamma$ definem a importância de cada fator.
@@ -108,7 +108,6 @@ $ d_i = frac(sum_(j in U) "Advantage"(i,j), 4 |U|) in [-1,1] $
 
 #slide[2. Modelo Matemático: Resistência defensiva ($r_i$)][
 Agora invertemos os papéis: os tipos do adversário $j$ atacam o Pokémon $i$.
-Resistir é bom; receber um ataque super efetivo é ruim.
 
 $ "Resist"(i,j) = -"Advantage"(j,i) = -sum_(t in T_j) s(t,i) $
 
@@ -185,9 +184,9 @@ upright("s.a.") quad & sum_(i in N) x_i = M\
 ]
 
 #slide[3. Solução: Arquitetura e Implementação][
-- #strong[Base de dados oficial:] Os testes utilizam dados oficiais de
+- #strong[Base de dados:] Os testes utilizam dados de
   #strong[status] (#emph[stats]) e tabelas de #strong[custos] extraídos
-  do site oficial da #strong[Smogon], uma das principais plataformas e
+  do site da #strong[Smogon], uma das principais plataformas e
   referências competitivas em #emph[Draft Leagues] de Pokémon.
 - #strong[Stack em Python:] Manipulação de dados e álgebra matricial com
   `pandas` e `numpy`; otimização via `scipy.optimize.milp`.
