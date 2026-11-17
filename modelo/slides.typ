@@ -31,9 +31,9 @@
   #v(18pt)
   #text(size: 21pt)[Recomendação sequencial e montagem de times via Programação Linear Inteira (MILP)]
   #v(32pt)
-  Grupo: [nomes] \
-  Disciplina: [nome] \
-  [dd/mm/aaaa]
+  Grupo: Eduardo Freire e João Pedro Cotrim \
+  Disciplina: Otimização \
+  18/11/2026
 ]
 #slide[1. Introdução: O Problema das Draft Leagues][
 - #strong[Contexto:] Pokémon (1996, Nintendo/Game Freak) possui um
@@ -134,7 +134,7 @@ $ max Z = sum_(i in N) c_i x_i, quad c_i = alpha v_i + beta d_i + gamma r_i $
   da otimização; cada $c_i$ é constante.
 
 *Quais times podemos escolher?* A seguir, impomos as restrições de tamanho,
-orçamento, permanência e exclusividade.
+orçamento, permanência, exclusividade e limite de mega-evoluções.
 ]
 
 #slide[2. Modelo Matemático: Todas as Restrições do Draft (1/2)][
@@ -159,6 +159,9 @@ $F = { i in N : i in.not U union upright("Ubers") } backslash A$:
 + #strong[Exclusividade e banimentos:] Pokémon já escolhidos pelos
   adversários ($U$) ou banidos ($upright("Ubers")$) são bloqueados:
   $ x_i = 0 quad forall i in(U union upright("Ubers")) backslash A $
++ #strong[Limite de mega-evoluções:] $"Mega"$ é o conjunto de mega-evoluções;
+  $E$ é o máximo permitido por equipe (por exemplo, $E = 1$):
+  $ sum_(i in "Mega") x_i <= E $
 + #strong[Domínio binário:] Cada candidato é escolhido integralmente ou
   descartado: $ x_i in { 0,1 } quad forall i in N $
 ]
@@ -171,6 +174,7 @@ rodada $M$:
 $ max quad & Z = sum_(i in N)(alpha v_i + beta d_i + gamma r_i)x_i\
 upright("s.a.") quad & sum_(i in N) x_i = M\
  & sum_(i in N) w_i x_i lt.eq B_M\
+ & sum_(i in "Mega") x_i <= E\
  & x_i = 1 &  & forall i in A\
  & x_i = 0 &  & forall i in(U union upright("Ubers")) backslash A\
  & x_i in { 0,1 } &  & forall i in N $
@@ -193,7 +197,7 @@ upright("s.a.") quad & sum_(i in N) x_i = M\
   Interiores, planos de corte e heurísticas primais).
 ]
 
-#slide[3. Solução: Estrutura em 3 scripts][
+#slide[3. Solução: Estrutura][
 + #strong[Simulador principal (`model1.py`):] Possui dois modos ---
   #emph[Draft] (você + $n - 1$ adversários aleatórios escolhendo
   rodada a rodada) e #emph[Game] (gera $n - 1$ equipes prontas e
@@ -204,9 +208,6 @@ upright("s.a.") quad & sum_(i in N) x_i = M\
   impacto da variação dos pesos ($alpha$, $beta$ e $gamma$) sobre
   custo, ataque e vantagem/resistência de tipos frente aos mesmos
   adversários.
-+ #strong[Abordagem de duelo:] Dado o #emph[roster] de $n$ Pokémon já
-  conquistados na liga, seleciona o melhor subconjunto de $m$ Pokémon
-  ($m lt.eq n$) para enfrentar o time do adversário na batalha.
 ]
 
 #slide[3. Solução: Demonstração em Rodada de Draft][
@@ -256,27 +257,13 @@ pois a escala muda com os pesos; avaliamos o trade-off pelas métricas
 físicas.
 ]
 
-#slide[3. Solução: Abordagem de Duelo (Problema Trivial)][
-Na etapa de batalha, o jogador já possui um #emph[roster] $R$
-($\|R\|= n$) pago no draft e precisa escolher $m$ Pokémon ($m lt.eq n$)
-contra o elenco adversário $O$:
-
-$ max quad Z = sum_(i in R)(beta d_i + gamma r_i)x_i #h(2em) upright("s.a.") quad sum_(i in R) x_i = m,quad x_i in { 0,1 } $
-
-- #strong[Por que o problema se torna trivial?]
-  + #strong[Sem restrição de orçamento:] Os custos $w_i$ já foram pagos
-    no draft; não há mochila (#emph[knapsack]), apenas a cardinalidade
-    fixa $m$.
-  + #strong[Separabilidade linear:] O escore
-    $s_i = beta d_i + gamma r_i$ de cada Pokémon $i in R$ é independente
-    dos demais escolhidos.
-- #strong[Solução exata sem Branch-and-Cut:] Resolver o MILP é
-  matematicamente equivalente a #strong[ordenar] os $n$ Pokémon do
-  #emph[roster] em ordem decrescente de $s_i$ e selecionar os
-  #strong[$m$ primeiros] --- complexidade $cal(O)(n log n)$.
+#slide[3. Solução: Funcionalidades Adicionais][
+- #strong[Interface interativa no terminal:] Sorteia Pokémon oponentes e mostra o modelo em ação em cada rodada.
+- #strong[Mais de 1 recomendação:] Apresenta ao usuário a cada rodada os 5 Pokémon com o maior valor de $Z$ e permite que ele escolha um.
+- #strong[Modelo mais simples para a seleção de um time para uma batalha específica:] Depois do draft, existe um novo problema de decisão a cada batalha, agora com um único time adversário, sem custo por Pokémon e restrito à equipe do draft.
 ]
 
-#slide[4. Discussão: Limitações e Casos Especiais][
+#slide[4. Discussão: Limitações, Casos Especiais e Generalizações Futuras][
 - #strong[Limitação (Separabilidade):] Como $c_i$ depende apenas do
   Pokémon $i$ e não dos pares $(i,k)$ do próprio time, o modelo pode
   recomendar #strong[tipos repetidos] (ex.: 5 Fadas em $beta$ dominante)
@@ -287,15 +274,8 @@ $ max quad Z = sum_(i in R)(beta d_i + gamma r_i)x_i #h(2em) upright("s.a.") qua
 - #strong[Casos especiais:]
   - #emph[Rodada 1 sem histórico ($U = emptyset$):] $d_i = r_i = 0$,
     reduzindo o problema ao critério puro de poder/custo.
-  - #emph[Abordagem de Duelo:] Sem orçamento e com função separável,
-    colapsa em uma simples #strong[ordenação] ($cal(O)(n log n)$).
-]
-
-#slide[4. Discussão: Generalizações futuras][
-- #strong[Programação Quadrática Binária (MIQP):] Adicionar termos de
-  sinergia
-  $- lambda sum_(i < k) upright("Overlap")(T_i,T_k)x_i x_k$ para
-  diversificar tipos.
-- #strong[Lookahead:] Simular escolhas futuras dos adversários
-  (já prototipado via flag `--lookahead`).
+- #strong[Generalizações futuras:]
+  - #emph[Programação Quadrática Binária (MIQP)]: Adicionar termos de sinergia
+    $- lambda sum_(i < k) upright("Overlap")(T_i,T_k)x_i x_k$ para
+    diversificar tipos.
 ]
