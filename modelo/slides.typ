@@ -256,26 +256,6 @@ pois a escala muda com os pesos; avaliamos o trade-off pelas métricas
 físicas.
 ]
 
-#slide[3. Solução: Abordagem de Duelo (Problema Trivial)][
-Na etapa de batalha, o jogador já possui um #emph[roster] $R$
-($\|R\|= n$) pago no draft e precisa escolher $m$ Pokémon ($m lt.eq n$)
-contra o elenco adversário $O$:
-
-$ max quad Z = sum_(i in R)(beta d_i + gamma r_i)x_i #h(2em) upright("s.a.") quad sum_(i in R) x_i = m,quad x_i in { 0,1 } $
-
-- #strong[Por que o problema se torna trivial?]
-  + #strong[Sem restrição de orçamento:] Os custos $w_i$ já foram pagos
-    no draft; não há mochila (#emph[knapsack]), apenas a cardinalidade
-    fixa $m$.
-  + #strong[Separabilidade linear:] O escore
-    $s_i = beta d_i + gamma r_i$ de cada Pokémon $i in R$ é independente
-    dos demais escolhidos.
-- #strong[Solução exata sem Branch-and-Cut:] Resolver o MILP é
-  matematicamente equivalente a #strong[ordenar] os $n$ Pokémon do
-  #emph[roster] em ordem decrescente de $s_i$ e selecionar os
-  #strong[$m$ primeiros] --- complexidade $cal(O)(n log n)$.
-]
-
 #slide[4. Discussão: Limitações e Casos Especiais][
 - #strong[Limitação (Separabilidade):] Como $c_i$ depende apenas do
   Pokémon $i$ e não dos pares $(i,k)$ do próprio time, o modelo pode
@@ -287,8 +267,6 @@ $ max quad Z = sum_(i in R)(beta d_i + gamma r_i)x_i #h(2em) upright("s.a.") qua
 - #strong[Casos especiais:]
   - #emph[Rodada 1 sem histórico ($U = emptyset$):] $d_i = r_i = 0$,
     reduzindo o problema ao critério puro de poder/custo.
-  - #emph[Abordagem de Duelo:] Sem orçamento e com função separável,
-    colapsa em uma simples #strong[ordenação] ($cal(O)(n log n)$).
 ]
 
 #slide[4. Discussão: Generalizações futuras][
