@@ -144,7 +144,7 @@ $F = { i in N : i in.not U union upright("Ubers") } backslash A$:
   exatamente um novo integrante, logo o time deve possuir exatamente $M$
   Pokémon: $ sum_(i in N) x_i = M $
 + #strong[Orçamento com reserva futura:] O custo acumulado não pode
-  exceder $B_M$, que reserva saldo para contratar os $G - M$ Pokémon
+  exceder $B_M$, que reserva saldo para escolher os $G - M$ Pokémon
   mais baratos ainda disponíveis
   ($w_((1)) lt.eq w_((2)) lt.eq dots.h$):
   $ sum_(i in N) w_i x_i lt.eq B_M,quad upright("onde ") B_M = C - sum_(k = 1)^(G - M) w_((k)) $
@@ -152,7 +152,7 @@ $F = { i in N : i in.not U union upright("Ubers") } backslash A$:
 
 #slide[2. Modelo Matemático: Todas as Restrições do Draft (2/2)][
 #set enum(start: 3)
-+ #strong[Permanência das escolhas anteriores:] Pokémon já contratados
++ #strong[Permanência das escolhas anteriores:] Pokémon já selecionados
   pelo jogador permanecem obrigatoriamente na equipe:
   $ x_i = 1 quad forall i in A $
 + #strong[Exclusividade e banimentos:] Pokémon já escolhidos pelos
@@ -259,7 +259,7 @@ físicas.
 #slide[3. Solução: Funcionalidades Adicionais][
 - #strong[Interface interativa no terminal:] Sorteia Pokémon oponentes e mostra o modelo em ação em cada rodada.
 - #strong[Mais de 1 recomendação:] Apresenta ao usuário a cada rodada os 5 Pokémon com o maior valor de $Z$ e permite que ele escolha um.
-- #strong[Modelo mais simples para a seleção de um time para uma batalha específica:] Depois do draft, existe um novo problema de decisão a cada batalha, agora com um único time adversário, sem custo por Pokémon e restrito à equipe do draft.
+- #strong[Modelo mais simples para a seleção de Pokémon para uma batalha específica:] Depois do draft, existe um novo problema de decisão a cada batalha, agora com um único time adversário, sem custo por Pokémon e restrito à equipe do draft.
 ]
 
 #slide[4. Discussão: Limitações, Casos Especiais e Generalizações Futuras][
@@ -272,7 +272,7 @@ físicas.
   habilidades e itens.
 - #strong[Casos especiais:]
   - #emph[Rodada 1 sem histórico ($U = emptyset$):] $d_i = r_i = 0$,
-    reduzindo o problema ao critério puro de poder/custo.
+    reduzindo o problema ao critério puro de poder.
 - #strong[Generalizações futuras:]
   - #emph[Programação Quadrática Binária (MIQP)]: Adicionar termos de sinergia
     $- lambda sum_(i < k) upright("Overlap")(T_i,T_k)x_i x_k$ para
