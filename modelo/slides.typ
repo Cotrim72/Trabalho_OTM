@@ -31,9 +31,9 @@
   #v(18pt)
   #text(size: 21pt)[Recomendação sequencial e montagem de times via Programação Linear Inteira (MILP)]
   #v(32pt)
-  Grupo: [nomes] \
-  Disciplina: [nome] \
-  [dd/mm/aaaa]
+  Grupo: Eduardo Freire e João Pedro Cotrim \
+  Disciplina: Otimização \
+  18/11/2026
 ]
 #slide[1. Introdução: O Problema das Draft Leagues][
 - #strong[Contexto:] Pokémon (1996, Nintendo/Game Freak) possui um
