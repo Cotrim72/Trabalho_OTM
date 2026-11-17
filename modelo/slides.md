@@ -45,7 +45,7 @@ $$
 s(t,j) = \begin{cases}
 +2, & \text{se } m(t,j) > 1 \quad (\text{super efetivo}) \\
 -2, & \text{se } m(t,j) < 1 \quad (\text{resistido ou imune}) \\
-\phantom{+}0, & \text{se } m(t,j) = 1 \quad (\text{neutro})
+0, & \text{se } m(t,j) = 1 \quad (\text{neutro})
 \end{cases}
 \qquad
 \text{Advantage}(i,j) = \sum_{t \in T_i} s(t,j) \in [-4, 4]
