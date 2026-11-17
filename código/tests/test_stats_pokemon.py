@@ -3,32 +3,32 @@ import unittest
 from pathlib import Path
 
 
-QUANTIDADE_ESPECIES_UNICAS = 1025
-QUANTIDADE_MEGA_EVOLUCOES = 97
-QUANTIDADE_FORMAS_GIGANTAMAX = 34
+UNIQUE_SPECIES_COUNT = 1025
+MEGA_EVOLUTION_COUNT = 97
+GIGANTAMAX_FORM_COUNT = 34
 # A forma Normal está incluída nas espécies únicas; estas são as outras 17 formas tipadas.
-QUANTIDADE_FORMAS_ARCEUS = 17
+ARCEUS_FORM_COUNT = 17
 # Formas adicionais: variantes regionais, de sexo, item, clima, postura, fusão,
 # batalha e Terastal, além de formas especiais (Totem, Primal, Ash, Origin,
 # Therian, Ultra, Crowned, Eternamax, Pokestar e MissingNo.).
-QUANTIDADE_FORMAS_ADICIONAIS = 262
+ADDITIONAL_FORM_COUNT = 262
 
 
 class TestStatsPokemon(unittest.TestCase):
-    def test_quantidade_total_de_pokemon(self):
-        caminho_csv = Path(__file__).parents[1] / "stats_pokemon.csv"
+    def test_total_pokemon_count(self):
+        csv_path = Path(__file__).parents[1] / "stats_pokemon.csv"
 
-        with caminho_csv.open(encoding="utf-8-sig", newline="") as arquivo:
-            quantidade_no_arquivo = sum(1 for _ in csv.DictReader(arquivo))
+        with csv_path.open(encoding="utf-8-sig", newline="") as file:
+            actual_count = sum(1 for _ in csv.DictReader(file))
 
-        quantidade_esperada = (
-            QUANTIDADE_ESPECIES_UNICAS
-            + QUANTIDADE_MEGA_EVOLUCOES
-            + QUANTIDADE_FORMAS_GIGANTAMAX
-            + QUANTIDADE_FORMAS_ARCEUS
-            + QUANTIDADE_FORMAS_ADICIONAIS
+        expected_count = (
+            UNIQUE_SPECIES_COUNT
+            + MEGA_EVOLUTION_COUNT
+            + GIGANTAMAX_FORM_COUNT
+            + ARCEUS_FORM_COUNT
+            + ADDITIONAL_FORM_COUNT
         )
-        self.assertEqual(quantidade_no_arquivo, quantidade_esperada)
+        self.assertEqual(actual_count, expected_count)
 
 
 if __name__ == "__main__":
