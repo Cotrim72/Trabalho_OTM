@@ -197,16 +197,33 @@ upright("s.a.") quad & sum_(i in N) x_i = M\
 ]
 
 #slide[3. Solução: Estrutura][
-+ #strong[Simulador principal (`model1.py`):] Possui dois modos ---
-  #emph[Draft] (você + $n - 1$ adversários aleatórios escolhendo
-  rodada a rodada) e #emph[Game] (gera $n - 1$ equipes prontas e
-  calcula o melhor time completo contra elas). #strong[Ambos utilizam
-  exatamente o mesmo MILP], alterando apenas os parâmetros $M$ (rodada
-  atual vs.~$G$) e $B_M$ (com reserva vs.~orçamento total $C$).
-+ #strong[Análise de sensibilidade (`sensibility.py`):] Avalia o
-  impacto da variação dos pesos ($alpha$, $beta$ e $gamma$) sobre
-  custo, ataque e vantagem/resistência de tipos frente aos mesmos
-  adversários.
+#set par(leading: 0.3em, spacing: 0pt)
+#text(size: 17pt)[*Simulador (`model1.py`):* seleção entre os modos Draft e Game]
+#v(5pt)
+#align(center)[#image("imagens/print1.png", width: 76%)]
+#v(8pt)
+#text(size: 17pt)[*Draft:* escolhas por rodada, com cinco recomendações do MILP]
+#v(5pt)
+#align(center)[#image("imagens/print2.png", width: 100%)]
+]
+
+#slide[3. Solução: Estrutura do Modo Game][
+#grid(columns: (285pt, 1fr), gutter: 20pt,
+  [
+    #set text(size: 18pt)
+    #set par(leading: 0.45em, spacing: 0.8em)
+    *Game (`model1.py`)* \
+    Gera $n - 1$ equipes adversárias e calcula o melhor time completo contra elas.
+
+    *Mesmo MILP nos dois modos* \
+    Draft: $M$ é a rodada atual e $B_M$ reserva saldo futuro. \
+    Game: $M = G$ e $B_M = C$.
+
+    *Sensibilidade (`sensibility.py`)* \
+    Varia os pesos $(alpha,beta,gamma)$ e compara custo, ataque e vantagem/resistência frente aos mesmos adversários.
+  ],
+  align(center)[#image("imagens/print3.png", height: 390pt)],
+)
 ]
 
 #slide[3. Solução: Demonstração em Rodada de Draft][
